@@ -130,6 +130,7 @@
     .card:hover { border-color: var(--teal); transform: translateY(-1px); }
     .card .name { font-weight: 600; font-size: 14px; }
     .card .name.presente { color: var(--accent); } .card .name.ausente { color: var(--danger); } .card .name.desistiu { color: var(--warning); }
+    .card .name.moto-quebrou { color: #ff9800; }
     .card .datetime, .card .discount { font-size: 11px; color: var(--text2); }
     .admin-actions button {
       background: transparent; border: 1px solid var(--teal); color: var(--teal);
@@ -138,6 +139,8 @@
     .admin-actions button:hover { background: rgba(0,188,212,0.12); }
     .admin-actions button.remover { border-color: var(--danger); color: var(--danger); }
     .admin-actions button.remover:hover { background: rgba(255,82,82,0.12); }
+    .admin-actions button.motoQuebrou { border-color: #ff9800; color: #ff9800; }
+    .admin-actions button.motoQuebrou:hover { background: rgba(255,152,0,0.12); }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
     .modal.active { display: flex; animation: fadeIn 0.2s ease; }
@@ -219,13 +222,13 @@
     </div>
   </div>
 
-  <!-- Modais (mantidos) -->
+  <!-- Modais -->
   <div id="deviceModal" class="modal"><div class="modal-content"><span class="close-modal" id="closeDeviceModal">&times;</span><h2>Dispositivos</h2><div id="deviceList"></div></div></div>
   <div id="configModal" class="modal"><div class="modal-content"><span class="close-modal" id="closeConfigModal">&times;</span><h2>Limite de Vagas</h2><div class="config-row"><label>Manhã</label><input type="number" id="limiteManha"></div><div class="config-row"><label>Noite</label><input type="number" id="limiteNoite"></div><button class="btn" id="salvarConfig">Salvar</button></div></div>
   <div id="motoboysModal" class="modal"><div class="modal-content"><span class="close-modal" id="closeMotoboysModal">&times;</span><h2>Cadastro de Motoboys</h2><div class="input-row"><input type="text" id="novoMotoboyNome" placeholder="Nome completo"><button class="btn" id="addMotoboyBtn">Adicionar</button></div><div id="listaMotoboys" style="max-height:300px;overflow-y:auto;"></div></div></div>
   <div id="lancamentosModal" class="modal"><div class="modal-content"><span class="close-modal" id="closeLancamentosModal">&times;</span><h2>Lançamentos</h2><select id="lancamentoMotoboy" style="width:100%;padding:10px;margin-bottom:10px;background:var(--glass);border:1px solid var(--border);border-radius:10px;"></select><div class="input-row"><input type="number" id="lancamentoValor" placeholder="Valor R$" step="0.01"><input type="date" id="lancamentoData"></div><input type="text" id="lancamentoDescricao" placeholder="Descrição" style="width:100%;padding:10px;margin-bottom:10px;background:var(--glass);border:1px solid var(--border);border-radius:10px;color:var(--text);"><button class="btn" id="salvarLancamento">Registrar</button><div id="listaLancamentos" style="margin-top:14px;max-height:200px;overflow-y:auto;"></div></div></div>
 
-  <!-- TELA PRINCIPAL (com importação rápida) -->
+  <!-- TELA PRINCIPAL -->
   <div id="mainView" class="container">
     <div class="tab-bar"><div class="tab active" id="tabManha">☀️ Manhã</div><div class="tab" id="tabNoite">🌙 Noite</div></div>
     <div class="shift-info"><span>Turno: <strong id="turnoLabel">Manhã</strong></span><span>Vagas: <strong id="vagasRestantes">0/16</strong></span></div>
@@ -235,7 +238,7 @@
       <button class="btn" id="inscreverBtn"><span class="material-icons">how_to_reg</span> Inscrever</button>
     </div>
 
-    <!-- ÁREA DE IMPORTAÇÃO RÁPIDA -->
+    <!-- IMPORTAÇÃO RÁPIDA -->
     <div class="quick-import">
       <textarea id="quickImportTextarea" placeholder="Cole a lista do WhatsApp aqui...&#10;Ex: 1 Joel&#10;2 Iago&#10;3 Eduardo Freitas"></textarea>
       <button class="btn" id="quickImportBtn"><span class="material-icons">file_download</span> Importar e Inscrever</button>
@@ -395,20 +398,15 @@
   document.getElementById('inscreverBtn').onclick=inscrever;
   document.getElementById('motoboyInput').addEventListener('keypress',e=>{if(e.key==='Enter')inscrever()});
 
-  // ========== IMPORTAÇÃO RÁPIDA CORRIGIDA ==========
+  // IMPORTAÇÃO RÁPIDA
   async function quickImport() {
     const texto = document.getElementById('quickImportTextarea').value.trim();
     if (!texto) return alert('Cole a lista de nomes primeiro.');
-
-    // Extração robusta: divide por quebras de linha, vírgulas, ponto e vírgula
     const partes = texto.split(/[\n\r,;]+/).filter(p => p.trim());
     let nomesExtraidos = [];
-
     for (const parte of partes) {
       let nome = parte.trim();
-      // Remove numeração inicial (ex: "1.", "1)", "1-", "1 ", "1º")
       nome = nome.replace(/^\s*\d+\s*[.)\-\s]*\s*/, '').trim();
-      // Se ainda houver dígitos no meio, tenta separar por padrão "número + espaço"
       if (/\d/.test(nome)) {
         const subNomes = nome.split(/\s+(?=\d+\s+)/).map(s => s.replace(/^\s*\d+\s*[.)\-\s]*\s*/, '').trim()).filter(s => s.length > 0 && !/^\d+$/.test(s));
         nomesExtraidos.push(...subNomes);
@@ -416,15 +414,10 @@
         if (nome.length > 0 && !/^\d+$/.test(nome)) nomesExtraidos.push(nome);
       }
     }
-
-    // Remove duplicatas e filtra vazios
     const nomesUnicos = [...new Set(nomesExtraidos.filter(nome => nome.length > 0))];
-
     if (!nomesUnicos.length) return alert('Nenhum nome válido encontrado.');
-
     let adicionados = 0, ignorados = 0;
     const inscritosAtuais = getInscritos();
-
     for (const nome of nomesUnicos) {
       if (inscritosAtuais.some(r => r.nome.toLowerCase() === nome.toLowerCase() && r.turno === turno)) {
         ignorados++;
@@ -437,17 +430,13 @@
       await push(registrosRef, { nome, turno, dataInscricao: now().toISOString(), status: 'inscrito', dataPresenca: null });
       adicionados++;
     }
-
     const msg = document.getElementById('quickImportResult');
     msg.style.display = 'block';
     msg.textContent = `✅ ${adicionados} inscrito(s)${ignorados > 0 ? `, ${ignorados} já existente(s)` : ''}.`;
     document.getElementById('quickImportTextarea').value = '';
     setTimeout(() => { msg.style.display = 'none'; }, 4000);
-
-    // Garante que a lista seja atualizada imediatamente (caso o Firebase ainda não tenha disparado)
     setTimeout(() => renderHoje(), 100);
   }
-
   document.getElementById('quickImportBtn').addEventListener('click', quickImport);
 
   document.getElementById('limparTodosBtn').onclick=async()=>{if(!confirm(`Excluir TODOS do turno ${turno}?`))return;for(const r of getInscritos()){if(r._firebaseKey)await remove(ref(database,`registros/${r._firebaseKey}`))}};
@@ -473,9 +462,24 @@
       if(r.status==='presente'){icone='check_circle';classe='presente';extra=`<div>${fmt(r.dataPresenca)}</div>`;const desc=calcDesc(r);if(desc>0)extra+=`<div style="color:var(--warning)">Desconto R$ ${desc.toFixed(2)}</div>`}
       else if(r.status==='ausente'){icone='cancel';classe='ausente';extra='<div>Não compareceu</div>'}
       else if(r.status==='desistiu'){icone='remove_circle';classe='desistiu';extra='<div>Desistiu</div>'}
+      else if(r.status==='motoQuebrou'){icone='build';classe='moto-quebrou';extra='<div>Moto quebrou</div>'}
       else extra='<div>Aguardando</div>';
       const ch=sel.has(r._firebaseKey)?'checked':'';
-      return`<div class="card"><div style="display:flex;align-items:center;gap:10px;flex:1"><input type="checkbox" class="selectCheckbox" data-id="${r._firebaseKey}" ${ch} style="transform:scale(1.1);margin-right:6px;"><span class="material-icons" style="color:${icone==='check_circle'?'var(--accent)':icone==='cancel'?'var(--danger)':icone==='remove_circle'?'var(--warning)':'var(--text)'}">${icone}</span><div><div class="name ${classe}">${r.nome}</div>${extra}</div></div><div class="admin-actions">${r.status==='inscrito'?`<button class="chegou" data-id="${r._firebaseKey}">✅</button><button class="naoChegou" data-id="${r._firebaseKey}">❌</button><button class="desistiu" data-id="${r._firebaseKey}">🚫</button>`:''}${r.status==='presente'?`<button class="editarHora" data-id="${r._firebaseKey}">✏️</button>`:''}<button class="remover" data-id="${r._firebaseKey}">🗑️</button></div></div>`;
+      let actions = '';
+      if (r.status === 'inscrito') {
+          actions += `<button class="chegou" data-id="${r._firebaseKey}">✅</button>`;
+          actions += `<button class="naoChegou" data-id="${r._firebaseKey}">❌</button>`;
+          actions += `<button class="desistiu" data-id="${r._firebaseKey}">🚫</button>`;
+      }
+      if (r.status === 'presente') {
+          actions += `<button class="editarHora" data-id="${r._firebaseKey}">✏️</button>`;
+      }
+      if (r.status !== 'presente' && r.status !== 'motoQuebrou') {
+          actions += `<button class="motoQuebrou" data-id="${r._firebaseKey}" title="Moto quebrou">🔧</button>`;
+      }
+      actions += `<button class="editarNome" data-id="${r._firebaseKey}" title="Editar nome">📝</button>`;
+      actions += `<button class="remover" data-id="${r._firebaseKey}">🗑️</button>`;
+      return`<div class="card"><div style="display:flex;align-items:center;gap:10px;flex:1"><input type="checkbox" class="selectCheckbox" data-id="${r._firebaseKey}" ${ch} style="transform:scale(1.1);margin-right:6px;"><span class="material-icons" style="color:${icone==='check_circle'?'var(--accent)':icone==='cancel'?'var(--danger)':icone==='remove_circle'?'var(--warning)':icone==='build'?'var(--warning)':'var(--text)'}">${icone}</span><div><div class="name ${classe}">${r.nome}</div>${extra}</div></div><div class="admin-actions">${actions}</div></div>`;
     }).join('');
   }
   document.getElementById('searchInput').oninput=renderHoje;
@@ -485,6 +489,8 @@
     if(e.target.classList.contains('chegou')){reg.status='presente';reg.dataPresenca=now().toISOString();set(ref(database,`registros/${k}`),reg)}
     else if(e.target.classList.contains('naoChegou')){reg.status='ausente';reg.dataPresenca=null;set(ref(database,`registros/${k}`),reg)}
     else if(e.target.classList.contains('desistiu')){reg.status='desistiu';reg.dataPresenca=null;set(ref(database,`registros/${k}`),reg)}
+    else if(e.target.classList.contains('motoQuebrou')){if(confirm('Marcar como "Moto quebrou"?')){reg.status='motoQuebrou';reg.dataPresenca=null;set(ref(database,`registros/${k}`),reg)}}
+    else if(e.target.classList.contains('editarNome')){const novo=prompt('Novo nome:',reg.nome);if(novo&&novo.trim()){reg.nome=novo.trim();set(ref(database,`registros/${k}`),reg)}}
     else if(e.target.classList.contains('remover')){if(confirm('Remover?'))remove(ref(database,`registros/${k}`))}
     else if(e.target.classList.contains('editarHora')){const d=new Date(reg.dataPresenca||now());const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');const inp=prompt('Novo horário (HH:MM):',`${hh}:${mm}`);if(!inp)return;const[h,m]=inp.split(':').map(Number);if(isNaN(h)||isNaN(m))return alert('Inválido');d.setHours(h,m,0,0);reg.dataPresenca=d.toISOString();set(ref(database,`registros/${k}`),reg)}
   });
@@ -570,8 +576,8 @@
   }
   function exportar(arr,f){
     if(!arr.length)return alert('Nenhum registro no período.');
-    const dados=arr.map(r=>({Nome:r.nome,Turno:r.turno,Status:r.status==='presente'?'Chegou':r.status==='ausente'?'Não chegou':r.status==='desistiu'?'Desistiu':'Inscrito','Data Inscrição':fmt(r.dataInscricao).split(' ')[0],'Hora Chegada':r.dataPresenca?fmt(r.dataPresenca).split(' ')[1]:'-',Desconto:r.status==='presente'?calcDesc(r).toFixed(2):'0.00'}));
-    if(f==='excel'){const ws=XLSX.utils.json_to_sheet(dados),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Presença');XLSX.writeFile(wb,'presenca_periodo.xlsx')}else if(f==='pdf'){const{jsPDF}=window.jspdf;const doc=new jsPDF();doc.autoTable({head:[['Nome','Turno','Status','Data','Chegada','Desconto']],body:dados.map(d=>[d.Nome,d.Turno,d.Status,d['Data Inscrição'],d['Hora Chegada'],d.Desconto])});doc.save('presenca_periodo.pdf')}else if(f==='txt'){let t='Relatório de Presença\n\n';arr.forEach((r,i)=>{const st=r.status==='presente'?'✅':r.status==='ausente'?'❌':r.status==='desistiu'?'🚫':'⏳';t+=`${i+1} ${r.nome} ${st}`;if(r.status==='presente'){t+=` ${fmt(r.dataPresenca).split(' ')[1]}`;const d=calcDesc(r);if(d>0)t+=` (R$ ${d.toFixed(2)})`}t+='\n'});const blob=new Blob([t],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='presenca_periodo.txt';a.click()}}
+    const dados=arr.map(r=>({Nome:r.nome,Turno:r.turno,Status:r.status==='presente'?'Chegou':r.status==='ausente'?'Não chegou':r.status==='desistiu'?'Desistiu':r.status==='motoQuebrou'?'Moto quebrou':'Inscrito','Data Inscrição':fmt(r.dataInscricao).split(' ')[0],'Hora Chegada':r.dataPresenca?fmt(r.dataPresenca).split(' ')[1]:'-',Desconto:r.status==='presente'?calcDesc(r).toFixed(2):'0.00'}));
+    if(f==='excel'){const ws=XLSX.utils.json_to_sheet(dados),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Presença');XLSX.writeFile(wb,'presenca_periodo.xlsx')}else if(f==='pdf'){const{jsPDF}=window.jspdf;const doc=new jsPDF();doc.autoTable({head:[['Nome','Turno','Status','Data','Chegada','Desconto']],body:dados.map(d=>[d.Nome,d.Turno,d.Status,d['Data Inscrição'],d['Hora Chegada'],d.Desconto])});doc.save('presenca_periodo.pdf')}else if(f==='txt'){let t='Relatório de Presença\n\n';arr.forEach((r,i)=>{const st=r.status==='presente'?'✅':r.status==='ausente'?'❌':r.status==='desistiu'?'🚫':r.status==='motoQuebrou'?'🔧':'⏳';t+=`${i+1} ${r.nome} ${st}`;if(r.status==='presente'){t+=` ${fmt(r.dataPresenca).split(' ')[1]}`;const d=calcDesc(r);if(d>0)t+=` (R$ ${d.toFixed(2)})`}else if(r.status==='motoQuebrou'){t+=' (Moto quebrou)';}t+='\n'});const blob=new Blob([t],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='presenca_periodo.txt';a.click()}}
   function downloadPeriodo(formato){
     const inicio=document.getElementById('downloadDataInicio').value;
     const fim=document.getElementById('downloadDataFim').value;
@@ -584,7 +590,7 @@
   document.getElementById('downloadTxt').onclick=()=>downloadPeriodo('txt');
 
   // Histórico
-  function renderHist(diaSel=null){const dias=[...new Set(db.filter(r=>r.status!=='removido').map(r=>new Date(r.dataInscricao||r.dataHora).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})))].sort((a,b)=>{const[da,ma,aa]=a.split('/');const[db,mb,ab]=b.split('/');return new Date(aa,ma-1,da)<new Date(ab,mb-1,db)?1:-1});const tabs=document.getElementById('dateTabs');tabs.innerHTML=dias.map(d=>`<span class="date-tab" data-dia="${d}">${d}</span>`).join('');if(!diaSel&&dias.length)diaSel=dias[0];selectedDayHistory=diaSel;tabs.querySelectorAll('.date-tab').forEach(t=>t.classList.toggle('active',t.dataset.dia===selectedDayHistory));const filt=selectedDayHistory?db.filter(r=>{const d=new Date(r.dataInscricao||r.dataHora);return d.toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})===selectedDayHistory&&r.status!=='removido'}):db.filter(r=>r.status!=='removido');document.getElementById('historyDayList').innerHTML=filt.length?filt.map(r=>{let st=r.status==='presente'?'✅':r.status==='ausente'?'❌':r.status==='desistiu'?'🚫':'⏳';const desc=r.status==='presente'?calcDesc(r):0;return`<div class="card"><div class="info"><span class="material-icons">${r.status==='presente'?'check_circle':r.status==='ausente'?'cancel':'motorcycle'}</span><div><div class="name">${r.nome} ${st}</div><div class="datetime">Insc: ${fmt(r.dataInscricao)}</div>${r.status==='presente'?`<div class="datetime">Chegada: ${fmt(r.dataPresenca)}</div>`:''}${desc>0?`<div class="discount">Desconto R$ ${desc.toFixed(2)}</div>`:''}</div></div></div>`}).join(''):'<div class="empty">Nenhum registro</div>';}
+  function renderHist(diaSel=null){const dias=[...new Set(db.filter(r=>r.status!=='removido').map(r=>new Date(r.dataInscricao||r.dataHora).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})))].sort((a,b)=>{const[da,ma,aa]=a.split('/');const[db,mb,ab]=b.split('/');return new Date(aa,ma-1,da)<new Date(ab,mb-1,db)?1:-1});const tabs=document.getElementById('dateTabs');tabs.innerHTML=dias.map(d=>`<span class="date-tab" data-dia="${d}">${d}</span>`).join('');if(!diaSel&&dias.length)diaSel=dias[0];selectedDayHistory=diaSel;tabs.querySelectorAll('.date-tab').forEach(t=>t.classList.toggle('active',t.dataset.dia===selectedDayHistory));const filt=selectedDayHistory?db.filter(r=>{const d=new Date(r.dataInscricao||r.dataHora);return d.toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})===selectedDayHistory&&r.status!=='removido'}):db.filter(r=>r.status!=='removido');document.getElementById('historyDayList').innerHTML=filt.length?filt.map(r=>{let st=r.status==='presente'?'✅':r.status==='ausente'?'❌':r.status==='desistiu'?'🚫':r.status==='motoQuebrou'?'🔧':'⏳';const desc=r.status==='presente'?calcDesc(r):0;return`<div class="card"><div class="info"><span class="material-icons">${r.status==='presente'?'check_circle':r.status==='ausente'?'cancel':'motorcycle'}</span><div><div class="name">${r.nome} ${st}</div><div class="datetime">Insc: ${fmt(r.dataInscricao)}</div>${r.status==='presente'?`<div class="datetime">Chegada: ${fmt(r.dataPresenca)}</div>`:''}${r.status==='motoQuebrou'?`<div class="datetime">Motivo: Moto quebrou</div>`:''}${desc>0?`<div class="discount">Desconto R$ ${desc.toFixed(2)}</div>`:''}</div></div></div>`}).join(''):'<div class="empty">Nenhum registro</div>';}
   document.getElementById('dateTabs').onclick=e=>{if(e.target.classList.contains('date-tab'))renderHist(e.target.dataset.dia)};
 
   function setViews(m,w,dd,down,h){
