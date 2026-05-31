@@ -445,8 +445,22 @@
   document.getElementById('excluirSelecionados').onclick=async()=>{if(!sel.size)return alert('Nenhum selecionado.');if(!confirm(`Excluir ${sel.size} registro(s)?`))return;for(const k of sel){await remove(ref(database,`registros/${k}`))}sel.clear()};
 
   function renderSummary(){
-    const insc=getInscritos();const s={total:insc.length,presente:insc.filter(r=>r.status==='presente').length,aguardando:insc.filter(r=>r.status==='inscrito').length,ausente:insc.filter(r=>r.status==='ausente').length,desistiu:insc.filter(r=>r.status==='desistiu').length};
-    document.getElementById('summaryContainer').innerHTML=`<div class="summary-card total ${filtroStatus===null?'active-filter':''}" data-f="todos"><div class="number">${s.total}</div><div class="label">Total</div></div><div class="summary-card presente ${filtroStatus==='presente'?'active-filter':''}" data-f="presente"><div class="number">${s.presente}</div><div class="label">✅ Chegaram</div></div><div class="summary-card aguardando ${filtroStatus==='inscrito'?'active-filter':''}" data-f="inscrito"><div class="number">${s.aguardando}</div><div class="label">⏳ Aguardando</div></div><div class="summary-card ausente ${filtroStatus==='ausente'?'active-filter':''}" data-f="ausente"><div class="number">${s.ausente}</div><div class="label">❌ Não chegaram</div></div><div class="summary-card desistiu ${filtroStatus==='desistiu'?'active-filter':''}" data-f="desistiu"><div class="number">${s.desistiu}</div><div class="label">🚫 Desistiram</div></div>`;
+    const insc=getInscritos();const s={
+      total:insc.length,
+      presente:insc.filter(r=>r.status==='presente').length,
+      aguardando:insc.filter(r=>r.status==='inscrito').length,
+      ausente:insc.filter(r=>r.status==='ausente').length,
+      desistiu:insc.filter(r=>r.status==='desistiu').length,
+      motoQuebrou:insc.filter(r=>r.status==='motoQuebrou').length
+    };
+    document.getElementById('summaryContainer').innerHTML=`
+      <div class="summary-card total ${filtroStatus===null?'active-filter':''}" data-f="todos"><div class="number">${s.total}</div><div class="label">Total</div></div>
+      <div class="summary-card presente ${filtroStatus==='presente'?'active-filter':''}" data-f="presente"><div class="number">${s.presente}</div><div class="label">✅ Chegaram</div></div>
+      <div class="summary-card aguardando ${filtroStatus==='inscrito'?'active-filter':''}" data-f="inscrito"><div class="number">${s.aguardando}</div><div class="label">⏳ Aguardando</div></div>
+      <div class="summary-card ausente ${filtroStatus==='ausente'?'active-filter':''}" data-f="ausente"><div class="number">${s.ausente}</div><div class="label">❌ Não chegaram</div></div>
+      <div class="summary-card desistiu ${filtroStatus==='desistiu'?'active-filter':''}" data-f="desistiu"><div class="number">${s.desistiu}</div><div class="label">🚫 Desistiram</div></div>
+      <div class="summary-card moto-quebrou ${filtroStatus==='motoQuebrou'?'active-filter':''}" data-f="motoQuebrou"><div class="number">${s.motoQuebrou}</div><div class="label">🔧 Moto quebrou</div></div>
+    `;
     document.querySelectorAll('.summary-card').forEach(c=>c.onclick=()=>{const f=c.dataset.f;filtroStatus=(f==='todos'||filtroStatus===f)?null:f;renderHoje();renderSummary()});
     document.getElementById('turnoLabel').textContent=turno==='manha'?'Manhã':'Noite';
     document.getElementById('vagasRestantes').textContent=`${s.total}/${limites[turno]}`;
@@ -474,7 +488,8 @@
       if (r.status === 'presente') {
           actions += `<button class="editarHora" data-id="${r._firebaseKey}">✏️</button>`;
       }
-      if (r.status !== 'presente' && r.status !== 'motoQuebrou') {
+      // Permite marcar como moto quebrou mesmo se já estiver presente
+      if (r.status !== 'motoQuebrou') {
           actions += `<button class="motoQuebrou" data-id="${r._firebaseKey}" title="Moto quebrou">🔧</button>`;
       }
       actions += `<button class="editarNome" data-id="${r._firebaseKey}" title="Editar nome">📝</button>`;
